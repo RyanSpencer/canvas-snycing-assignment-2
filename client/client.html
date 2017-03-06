@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Gifful</title>
+    <title>Sweet Draws My Dude</title>
     <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script type="text/babel" >
         "use strict";
-        let canvas, ctx, sendBufferCanvas, sendBufferCtx, socket, dragging = false;
+        let canvas, ctx, sendBufferCanvas, sendBufferCtx, socket, dragging = false, clientRoom;
         
         const randomColor = () => {
             const letters = '0123456789ABCDEF';
@@ -92,6 +92,7 @@
             image.src = data.imgData;
         };
         
+
         const init = () => {
             canvas = document.querySelector("#canvas");
             ctx = canvas.getContext('2d');
@@ -109,18 +110,28 @@
             socket = io.connect();
             
             socket.on('connect', () => {
-               socket.emit('join', {});
-               setup();
+                socket.emit('join', {});
+                setup();
             });
-            
+
             socket.on('drawFromServer', (data) => {
                 updateScreen(data);
             });
             
             document.querySelector("#clearButton").onclick = () => {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);  
-                sendBufferCtx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);  
+                    sendBufferCtx.clearRect(0, 0, canvas.width, canvas.height);
             };
+            socket.on('startData', () => {
+               const data = {
+                    x: 0,
+                    y: 0,
+                    height: 480,
+                    width: 640,
+                    imgData : sendBufferCanvas.toDataURL(),
+                };  
+                socket.emit('draw', data); 
+            });
         };
         window.onload = init;
     </script>
@@ -129,6 +140,15 @@
              background: #ffffff;
              box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
           }
+            a {
+            width: 300px;
+            height: 100px;
+            background: rgb(155, 52, 78);
+            padding: 15px;
+            font-size: 32px;
+            text-decoration: none;
+            color: white;
+        }
     </style>
 </head>
 <body>

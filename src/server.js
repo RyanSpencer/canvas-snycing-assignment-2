@@ -23,6 +23,7 @@ const onJoin = (sock) => {
 
   socket.on('join', () => {
     socket.join('room1');
+    socket.broadcast.to('room1').emit('startData', {});
   });
 };
 
