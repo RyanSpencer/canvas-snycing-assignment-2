@@ -4,7 +4,7 @@ const socketio = require('socket.io');
 
 const port = process.env.PORT || process.env.NODE_PORT || 3000;
 
-const index = fs.readFileSync(`${__dirname}/../client/index.html`);
+const index = fs.readFileSync(`${__dirname}/../client/client.html`);
 
 const onRequest = (request, response) => {
   response.writeHead(200, { 'Content-Type': 'text/html' });
@@ -26,8 +26,17 @@ const onJoin = (sock) => {
   });
 };
 
+const onDraw = (sock) => {
+  const socket = sock;
+
+  socket.on('draw', (data) => {
+    socket.broadcast.to('room1').emit('drawFromServer', data);
+  });
+};
+
 io.sockets.on('connection', (socket) => {
   console.log('started');
   onJoin(socket);
+  onDraw(socket);
 });
 console.log('Websocket server started');

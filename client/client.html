@@ -1,19 +1,138 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <title>Gifful</title>
     <script src="https://npmcdn.com/babel-core@5.8.38/browser.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script type="text/babel" >
         "use strict";
-        let canvas, ctx, sendBufferCanvas, sendBufferCtx, socket;
+        let canvas, ctx, sendBufferCanvas, sendBufferCtx, socket, dragging = false;
+        
+        const randomColor = () => {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+                if (color === '#FF0000') {
+                    color = '#';
+                    i = 0;
+                }
+            }         
+            return color;
+        };
 
+        const setup = () => {
+            sendBufferCanvas = document.createElement("canvas");
+            sendBufferCanvas.height = canvas.height;
+            sendBufferCanvas.width = canvas.width;
+            sendBufferCtx = sendBufferCanvas.getContext("2d");    
+            
+            sendBufferCtx.lineWidth = 5;
+            sendBufferCtx.strokeStyle = randomColor();
+            sendBufferCtx.lineCap = "round";
+            sendBufferCtx.lineJoin = "round";
+            
+            const readScreen = () => {
+                if (!dragging) return; 
+                const data = {
+                    x: 0,
+                    y: 0,
+                    height: 480,
+                    width: 640,
+                    imgData : sendBufferCanvas.toDataURL(),
+                };  
+                socket.emit('draw', data);
+            };
+            setInterval(readScreen, 100);
+        };
+
+
+        // EVENT CALLBACK FUNCTIONS
+        const doMousedown = (e) => {
+            dragging = true;
+
+            ctx.beginPath();
+            ctx.moveTo(e.pageX, e.pageY);
+            sendBufferCtx.beginPath();
+            sendBufferCtx.moveTo(e.pageX, e.pageY);            
+        };
+
+        const doMousemove = (e) =>{
+            if (!dragging) return;
+        
+            ctx.lineTo(e.pageX, e.pageY);
+            ctx.stroke();
+            sendBufferCtx.lineTo(e.pageX, e.pageY);
+            sendBufferCtx.stroke();
+        };
+
+        const doMouseup = (e) => {
+            dragging = false;
+            ctx.closePath();
+            sendBufferCtx.closePath();
+        };
+
+        // if the user drags out of the canvas
+        const doMouseout = (e) => {
+            dragging = false;
+            ctx.closePath();
+            sendBufferCtx.closePath();
+        };
+
+        const updateScreen = (data) => {
+            let image = new Image();
+            
+            image.onload = () => {
+                ctx.save();
+                ctx.globalCompositeOperation = "source-over";
+                ctx.drawImage(image, data.x, data.y, data.width, data.height);
+                ctx.restore();
+            };
+            
+            image.src = data.imgData;
+        };
+        
         const init = () => {
+            canvas = document.querySelector("#canvas");
+            ctx = canvas.getContext('2d');
 
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = "black";
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            
+            canvas.onmousedown = doMousedown;
+            canvas.onmousemove = doMousemove;
+            canvas.onmouseup = doMouseup;
+            canvas.onmouseout = doMouseout;
+            
+            socket = io.connect();
+            
+            socket.on('connect', () => {
+               socket.emit('join', {});
+               setup();
+            });
+            
+            socket.on('drawFromServer', (data) => {
+                updateScreen(data);
+            });
+            
+            document.querySelector("#clearButton").onclick = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);  
+                sendBufferCtx.clearRect(0, 0, canvas.width, canvas.height);
+            };
         };
         window.onload = init;
     </script>
+    <style>
+        canvas {
+             background: #ffffff;
+             box-shadow: 4px 4px 8px rgba(0,0,0,0.5);
+          }
+    </style>
 </head>
 <body>
-    <canvas id="canvas" height="640" width="480"></canvas>
+    <canvas id="canvas" height="480" width="640"></canvas>
+    <input id="clearButton" type="button" value="Clear">
 </body>
 </html>
